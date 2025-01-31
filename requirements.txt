@@ -1,0 +1,14 @@
+cartopy
+numpy
+scipy
+numba>=0.38
+matplotlib>=2.1
+jupyter
+numba
+healpy
+nose
+pytables
+pyyaml
+gitpython
+
+
