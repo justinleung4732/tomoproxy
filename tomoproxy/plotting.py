@@ -6,9 +6,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pyshtools
 
-from . import spherical_shell_pix
-
-
 def plot_shcoefs(coefs, r=None, title='', quantity='', cmap='seismic_r',
                       coast_color='k', projection=ccrs.PlateCarree(),
                       scale_factor=None, lmax=None, levels=None, vmin=None,

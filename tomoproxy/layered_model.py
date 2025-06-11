@@ -33,6 +33,10 @@ class LayeredModel(object):
             elif from_string:
                 self.layers = self._read_long_format_file(init_data,
                                      from_string=True)
+            else:
+                # Init model from HC formatted file
+                self.layers = self._read_tomography_file(init_data)
+            self.name = init_data
         else:
             self.layers = self._init_zeros(init_data[0], init_data[1])
             self.name = init_data[2]
@@ -182,7 +186,15 @@ class LayeredModel(object):
                         f.write(" {:14.7e} {:14.7e}\n".format(
                                                          layer.cilm[0,l,m],
                                                          layer.cilm[1,l,m]))
-        
+    
+    
+    def get_dimensions(self):
+        depths = []
+        lmaxs = []
+        for layer in self.layers:
+            depths.append(layer.depth)
+            lmaxs.append(layer.lmax)
+        return depths, lmaxs
 
 def copy_low_degree(layer_model, new_lmax, min_depth=None):
     """Copy a LayerModel but truncate at a new_lmax
