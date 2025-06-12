@@ -12,7 +12,24 @@ from . import mineral_model
 # Functions
 def _normalise_to_PREM(spline, spline_depths, PREM_depths, normalise = True):
     """
-    PREM_depths should be an array from outwards towards center of the Earth in radius (not depth)
+    Calculates a given spline at PREM_depths.
+
+    Parameters
+    -------
+    spline: array_like (n)
+        The values of the spline evaluated at spline_depths.
+    spline_depths: array_like (n)
+        The depth values at which the spline values correspond to.
+    PREM_depths: array_like (k)
+        The list of depths used in PREM. PREM_depths should be an array from 
+        outwards towards center of the Earth in radius (not depth)
+    normalise: bool
+        If normalise = True, the spline will be summed up to a total of 1.
+    
+    Returns
+    -------
+    new_spline: array_like (k)
+        The values of the new spline evaluated at PREM depths.
     """
     if np.diff(spline_depths)[0] > 1:
         spline_depths = 6371 - spline_depths
@@ -62,11 +79,46 @@ _gamma = _normalise_to_PREM(_gamma, _PREM_500_depths, _SOLA_depths, normalise = 
 
 # Classes
 class BdgPPvTwoPhaseRegion():
-
+    """
+    A class object that contains the range of pressures that mark the boundaries 
+    of the bdg-pPv two phase region, at a given list of temperatures, for a given 
+    LLVP composition and pPv stability scenario. This object is needed for
+    determining the most effectively phase assemblage in the calculation of 
+    equilibrium phases.
+    """
+    
     def __init__(self, comp, temperatures = np.arange(1000., 4500., 50.),
                  min_model = "SLB_2022", assemblage_type = 'depleted', save = False, 
                  outdir = '', verbose = False, imported = False):
-        
+        """
+        Creates an instance of the BdgPPvTwoPhaseRegion object. The instance can
+        be created either by importing from a previously calculated two phase region,
+        or be created fresh, which will automatically conduct the two phase region 
+        calculation.
+
+        Parameters
+        -------
+        comp: str or dict
+            The name of the LLVP composition. Should be either "pyrolite", "BMO",
+            "MORB" or "HC". If comp is a dictionary, the composition will be
+            prescribed by the list of oxides given in the dictionary.
+        temperatures: array_like (n)
+            The list of temperatures at which the two phase region is evaluated at.
+        min_model: str
+            The mineralogical model used. Should either be "SLB_2022" or "SLB_2011".
+        assemblage_type: str
+            The mineral assemblage type used to calculate the two phase region.
+            Should either be "depleted" or "enriched".
+        save: bool
+            If save = True, the two phase region will be saved as a .txt file.
+        outdir: str
+            The directory in which to output the two phase region.
+        verbose: bool
+            Whether to print output updating the user on the status of calculation.
+        imported: bool
+            Whether or not the two phase region will be imported. If False, the
+            two phase region will be automatically calculated.
+        """
         assert comp in ['pyrolite', 'BMO', 'MORB', 'HC'], "Not a valid type of composition"
         assert min_model in ['SLB_2011', 'SLB_2022'], "Database not recognised. Must either be 2022 (SLB 2022) or 2011 (SLB 2011)"
 
@@ -93,7 +145,20 @@ class BdgPPvTwoPhaseRegion():
 
 
     def _calculate(self, composition, save = False, outdir = '', verbose = False):
+        """
+        Calculates the two phase region.
 
+        Parameters
+        -------
+        comp: dict
+            A dictionary containing the list of oxides for a given composition.
+        save: bool
+            If save = True, the two phase region will be saved as a .txt file.
+        outdir: str
+            The directory in which to output the two phase region.
+        verbose: bool
+            Whether to print output updating the user on the status of calculation.
+        """
         if self.min_model == "SLB_2011":
             pv = burnman.minerals.SLB_2011.mg_fe_perovskite()
             ppv = burnman.minerals.SLB_2011.post_perovskite()
@@ -202,6 +267,16 @@ class BdgPPvTwoPhaseRegion():
 
     @classmethod
     def from_txt(cls, txtfile):
+        """
+        Imports a previously calculated two phase region, and stores it in a 
+        BdgPPvTwoPhaseRegion class object.
+
+        Parameters
+        -------
+        txtfile: str
+            The name of the txtfile that the two phase region calculation is
+            stored in.
+        """
         txtfile_split = os.path.basename(txtfile).split('_')
         assert txtfile_split[-6:-2] == ['ppv', 'two', 'phase', 'boundary'], \
             'Filename must be in "ppv_two_phase_boundary_[COMP]_[MIN_MODEL]"'
@@ -224,9 +299,45 @@ class BdgPPvTwoPhaseRegion():
 
 
 class PhaseGrid():
+    """
+    A class object that contains the equilibrium phase assemblage for a given 
+    LLVP composition and post-perovskite stability scenario, evaluated with a given
+    mineralogical model. The phase assemblaetes stored in this object can also be
+    used to evaluate its elastic parameters.
+    """
 
     def __init__(self, phases, t_grid, depth, lon, lat, comp, min_model = 'SLB_2022', assemblage_type = 'depleted'):
+        """
+        Creates an instance of the PhaseGrid object. This object is created after 
+        calculating equilibrium phase assemblage from the oxide_to_phase function.
+        It can also be created by importing calculated equilibrium assemblages from
+        a file or dictionary.
 
+        Parameters
+        -------
+        phases: str or dict
+            If phases is in a str format, it should be the filename of a file to
+            where phase data should be imported from. If phases is a dictionary,
+            the object will store this dictionary as values for the different phases.
+        t_grid: array_like (n, k)
+            A 2-D grid of temperatures evaluated at n depths and k lat/lon points.
+            The equilibrium phases are evaluated at the same points as the temperature
+            grid.
+        depth: array_like (n)
+            The list of depths of the t_grid model.
+        lon: array_like (k)
+            The list of longitude points of the t_grid model.
+        lat: array_like (k)
+            The list of latitude points of the t_grid model.
+        comp: str
+            The name of the LLVP composition. Should be either "pyrolite", "pyrolite_TC",
+            "BMO", "MORB" or "HC".
+        min_model: str
+            The mineralogical model used. Should either be "SLB_2022" or "SLB_2011".
+        assemblage_type: str
+            The mineral assemblage type used to calculate the two phase region.
+            Should either be "depleted" or "enriched".
+        """
         assert min_model in ['SLB_2011', 'SLB_2022'], "Database not recognised. Must either be 2022 (SLB 2022) or 2011 (SLB 2011)"
         assert len(depth) == t_grid.shape[0], "Depth not matching number of rows in temperature grid"
         assert len(lon) == len(lat), "List of latitudes must be the same length as list of longitudes"
@@ -278,7 +389,17 @@ class PhaseGrid():
 
 
     def _from_txt(self, txtfile, assemblage_type = 'depleted'):
+        """
+        Imports phase data from a .txt file into a PhaseGrid object.
 
+        Parameters
+        -------
+        phases: str
+            The filename of the txtfile to import the phase data from.
+        assemblage_type: str
+            The mineral assemblage type used to calculate the two phase region.
+            Should either be "depleted" or "enriched".
+        """
         assert txtfile == f'phases_{self.comp}_{self.min_model[-2:]}', \
             "File must have the name 'phases_COMP_MINMODEL'"
         
@@ -306,7 +427,14 @@ class PhaseGrid():
 
 
     def _from_npz(self, npz_file):
+        """
+        Imports phase data from a .npz file into a PhaseGrid object.
 
+        Parameters
+        -------
+        phases: str
+            The filename of the npzfile to import the phase data from.
+        """
         assert f'phases_{self.comp}_{self.min_model[-2:]}.npz' in npz_file, \
             "File must have the name 'phases_COMP_MINMODEL.npz'"
 
@@ -320,9 +448,32 @@ class PhaseGrid():
 
 
     def calculate_ppv_frac(self, py_phases = '', X = None, exclude_LLVP = False, threshold = 0.6):
-        """A function that imports equilibrium phase assemblage files and calculates the 
-        bdg-ppv fraction at each Terra grid point"""
+        """
+        A function that imports equilibrium phase assemblage files and calculates the 
+        pPv fraction at each Terra grid point 
 
+        Parameters
+        -------
+        py_phases: str or dict
+            If phases is in a str format, it should be the filename of a file of the
+            equilibrium phases of the reference pyrolite composition (of same pPv stability
+            scenario and mineralogical model). If phases is a dictionary, it should contain
+            the equilibrium phases of the reference pyrolite composition.
+        X: array_like
+            The density grid from the TERRA geodynamic model, which should contain values
+            describing the fraction of dense material at each grid point (from 0 to 1).
+        exclude_LLVP: bool
+            Used for the 'partppv' pPv stability scenario. If True, the pPv frac in within the
+            LLVP
+        thershold: float
+            The value used to evaluate the location of the LLVPs, which are defined at points
+            where X >= threshold.
+
+        Returns
+        -------
+        ppv_frac: array_like
+            An array with values of pPv fraction at each Terra grid point
+        """
         if 'pyrolite' not in self.comp:
             assert isinstance(py_phases, PhaseGrid) or f'phases_pyroliteTC_{self.min_model[-2:]}' in py_phases, \
                 "py_phase needed for compositional non-heterogeneous part of the mantle. Must be either a file \
@@ -358,11 +509,29 @@ class PhaseGrid():
         
 
     def evaluate_elastic(self, ppv_mode, X = None, py_model = None, save = False, outdir = ''):
-    # Apply above calculation to Earth Model (Creating elastic Earth Model)
+        """
+        Calculating elastic parameters (rho, vp, vphi, vs, K, G,) at each Terra Grid point.
 
-    # Note that this step takes quite a lot of time (especially if the resolution of em is high).
-    # Nonetheless, this step can run in parallel over the points, but not in a jupyter notebook.
-    # Calculate elastic velocities for a range of P and T
+        Parameters
+        -------
+        ppv_mode: str
+            The name of the pPv stability scenario. Should be either "noppv", "ppv" or "partppv".
+        X: array_like
+            The density grid from the TERRA geodynamic model, which should contain values
+            describing the fraction of dense material at each grid point (from 0 to 1).
+        py_model: ElasticGrid object
+            Elastic parameters from the reference pyrolite composition model (of same pPv
+            stability scenario and mineralogical model).
+        save: bool
+            If save = True, the elastic parameters will be saved as a .npz file.
+        outdir: str
+            The directory in which to output the elastic parameters.
+
+        Returns
+        -------
+        : ElasticGrid object
+            The calculated elastic parameters for this PhaseGrid object.
+        """
 
         if "pyrolite" not in self.comp:
             assert isinstance(py_model, ElasticGrid), "Reference thermal (pyrolite) model needed at points outside LLVPs"
@@ -440,11 +609,40 @@ class PhaseGrid():
 
 
 class ElasticGrid():
+    """
+    A class object that stores the elastic parameters calculated from a equilibrium
+    phase assemblage.
+    """
     
     def __init__(self, depth, lon, lat, rho_grid = None, vp_grid = None, 
                  vphi_grid = None, vs_grid = None, 
-                 k_grid = None, g_grid = None, comp = None):
-        
+                 k_grid = None, g_grid = None):
+        """
+        Creates an instance of the ElasticGrid object. This object is created from
+        evaluating the elastic parameters of a PhaseGrid object, or imported from
+        a file.
+
+        Parameters
+        -------
+        depth: array_like (n)
+            The list of depths of the t_grid model.
+        lon: array_like (k)
+            The list of longitude points of the t_grid model.
+        lat: array_like (k)
+            The list of latitude points of the t_grid model.
+        rho_grid: array_like (n,k)
+            Density values evaluated at each depth and lat/lon point.
+        vp_grid: array_like (n,k)
+            Compressional-wave velocities evaluated at each depth and lat/lon point.
+        vphi_grid: array_like (n,k)
+            Bulk-sound velocities values evaluated at each depth and lat/lon point.
+        vs_grid: array_like (n,k)
+            Shear-wave velocities values evaluated at each depth and lat/lon point.
+        k_grid: array_like (n,k)
+            Bulk moduli values evaluated at each depth and lat/lon point.
+        g_grid: array_like (n,k)
+            Shear moduli values evaluated at each depth and lat/lon point.
+        """
         assert len(lon) == len(lat), "List of latitudes must be the same length as list of longitudes"
         self.lon = lon
         self.lat = lat
@@ -457,12 +655,36 @@ class ElasticGrid():
         self.k_grid = k_grid
         self.g_grid = g_grid
     
-        self.comp = comp
-
 
     @classmethod
     def from_file(cls, fileloc, comp, ppv_model_type, depth, lon, lat, min_model = 'SLB_2022', comp_grid = None, threshold = 0.6):
+        """
+        Imports elastic parameters from a file and creates an ElasticGrid instance.
 
+        Parameters
+        -------
+        fileloc: str
+            The filename of the npzfile to import the phase data from.
+        comp: str
+            The name of the LLVP composition. Should be either "pyrolite",
+            "pyrolite_TC", "BMO", "MORB" or "HC".
+        ppv_model_type: str
+            The name of the pPv stability scenario. Should be either "noppv", "ppv" or "partppv".
+        depth: array_like (n)
+            The list of depths of the t_grid model.
+        lon: array_like (k)
+            The list of longitude points of the t_grid model.
+        lat: array_like (k)
+            The list of latitude points of the t_grid model.
+        min_model: str
+            The mineralogical model used. Should either be "SLB_2022" or "SLB_2011".
+        comp_grid: array_like (n,k)
+            The density grid from the TERRA geodynamic model, which should contain values
+            describing the fraction of dense material at each grid point (from 0 to 1).
+        thershold: float
+            The value used to evaluate the location of the LLVPs, which are defined at points
+            where comp_grid >= threshold.
+        """
         assert comp in ['pyrolite', 'pyroliteTC', 'BMO', 'MORB', 'HC'], "Not a valid type of composition" 
         assert len(lon) == len(lat), "List of latitudes must be the same length as list of longitudes"
         assert min_model in ['SLB_2011', 'SLB_2022'], "Database not recognised. Must either be 2022 (SLB 2022) or 2011 (SLB 2011)"
@@ -503,7 +725,31 @@ class ElasticGrid():
     
 
     def to_continuous_param(self, r_deg = 20, sph_deg = 8, save = False, outdir = '', filename = ''):
+        """
+        Applies a chebyshev spline to the differnet depth layers, and reparameterises lat/lon
+        points into spherical harmonics. Returns the parameterisation as a RawSeismicModel
+        object.
 
+        Parameters
+        -------
+        rdeg: int
+            The maximum radial degree used to paramerise the chebyshev spline.
+        sph_deg: int
+            The maximum spherical harmonic degree to parameterise the lateral space.
+        save: bool
+            If save = True, the continuous parameterisation will be saved as 
+            HC-formatted (SH) tomography file
+        outdir: str
+            The directory in which to output the continuous parameterisation.
+        filename: str
+            The filename in which to store the continuous parameterisation.
+
+        Returns
+        -------
+        : RawSeismicModel object
+            Seismic velcoities in chebyshev splines for depth and spherical harmonics
+            laterally.
+        """
         print(f"Converting model {filename}")
         input_data = [self.depth, sph_deg * np.ones(len(self.depth), dtype='int'), 'V']
         Vp_layer = lm.LayeredModel(input_data)
@@ -529,9 +775,27 @@ class ElasticGrid():
 
 
 class RawSeismicModel():
-
+    """
+    An object that stores raw (unfiltered) seismic velocities in chebyshev splines 
+    for depth and spherical harmonics laterally.
+    """
     def __init__(self, Vp, Vs, Vphi, r_deg):
+        """
+        Creates an instance of the RawSeismicModel object. This object is created 
+        from calculating the continuous parameterisation from a ElasticGrid object,
+        or imported from a file.
 
+        Parameters
+        -------
+        Vp: LayeredModel class object
+            The spherical harmonic coefficients of a Vp model at specific layer depths.
+        Vs: LayeredModel class object
+            The spherical harmonic coefficients of a Vs model at specific layer depths.
+        Vc: LayeredModel class object
+            The spherical harmonic coefficients of a Vc model at specific layer depths.
+        rdeg: int
+            The maximum radial degree used to paramerise the chebyshev spline.
+        """
         assert isinstance(Vp, lm.LayeredModel), "Vp needs to be a LayeredModel instance"
         assert isinstance(Vs, lm.LayeredModel), "Vs needs to be a LayeredModel instance"
         assert isinstance(Vphi, lm.LayeredModel), "Vphi needs to be a LayeredModel instance"
@@ -544,7 +808,28 @@ class RawSeismicModel():
 
     @classmethod
     def from_file(cls, r_deg, fileloc, comp, ppv_model_type, min_model = '', seismic_model = ''):
+        """
+        Creates an instance of the RawSeismicModel object. This object is created 
+        from calculating the continuous parameterisation from a ElasticGrid object,
+        or imported from a file.
 
+        Parameters
+        -------
+        rdeg: int
+            The maximum radial degree used to paramerise the chebyshev spline.
+        fileloc: str
+            A directory of where the LayeredModels of the thermal and thermochemical models 
+            are stored.
+        comp: str
+            The name of the LLVP composition. Should be either "pyrolite",
+            "pyrolite_TC", "BMO", "MORB" or "HC".
+        ppv_model_type: str
+            The name of the pPv stability scenario. Should be either "noppv", "ppv" or "partppv".
+        min_model: str
+            The mineralogical model used. Should either be "SLB_2022" or "SLB_2011".
+        seismic_model: str
+            The name of the seismic model used in the filename.
+        """
         assert comp in ['pyrolite', 'pyroliteTC', 'BMO', 'MORB', 'HC'], "Not a valid type of composition" 
         assert ppv_model_type in ['noppv', 'ppv', 'partppv'], "Not a valid type of ppv_model"
         assert min_model in ['SLB_2011', 'SLB_2022'], "Database not recognised. Must either be 2022 (SLB 2022) or 2011 (SLB 2011)"
@@ -557,7 +842,11 @@ class RawSeismicModel():
 
 
     def to_SOLA(self):
-
+        """
+        Stores the coefficients in a format in that of Restelli et al. (2023) before 
+        tomographic filtering (spherical degree 8, PREM layer depths). Returns the
+        filtered tomography model as a SOLAShell object.
+        """
         assert self.lmax >= 8, "Spherical degree is not high enough to create SOLAShell"
         Vp = np.zeros((len(_SOLA_depths), 2, 9, 9))
         Vs = np.zeros_like(Vp)
@@ -579,7 +868,17 @@ class RawSeismicModel():
 
 
     def _to_sshell(self, Vp, Vs, Vphi):
-
+        """
+        Applies a chebyshev spline for the different seismic velocities.
+        Parameters
+        -------
+        Vp: LayeredModel class object
+            The spherical harmonic coefficients of a Vp model at specific layer depths.
+        Vs: LayeredModel class object
+            The spherical harmonic coefficients of a Vs model at specific layer depths.
+        Vc: LayeredModel class object
+            The spherical harmonic coefficients of a Vc model at specific layer depths.
+        """
         self.vp = sh.SShell(spherical_degree = self.lmax, radial_degree = self.rdeg, r_min = 6371.0 - Vp.layers[-1].depth, r_max = 6371.0 - Vp.layers[0].depth)
         self.vs = sh.zeros_like(self.vp)
         self.vphi = sh.zeros_like(self.vp)
@@ -592,6 +891,13 @@ class RawSeismicModel():
 
     @staticmethod
     def _abs_to_rel_velocity(coefs):
+        """
+        Calculates the relative velocities as percentages from the 1-D average.
+        Parameters
+        -------
+        coefs: array_like (2,n,n)
+            Spherical harmonic coefficients of absolute velocities.
+        """
         coefs /= coefs[0,0,0] / (2.0 * np.sqrt(np.pi))
         coefs *= 100
         coefs[0,0,0] = 0
@@ -599,10 +905,41 @@ class RawSeismicModel():
     
 
 class SOLAShell():
-    
+    """
+    Stores the coefficients in a format in that of Restelli et al. (2023) before 
+    tomographic filtering (spherical degree 8, PREM layer depths). Returns the
+    filtered tomography model as a SOLAShell object. The coefficients can be filtered
+    with the resolving kernel, which can then be quantitatively compared with 
+    the model of Restelli et al. (2023).
+    """
     def __init__(self, Vp = None, Vs = None, Vphi = None, 
                  Vp_err = None, Vs_err = None, Vphi_err = None):
-        
+        """
+        Creates an instance of the SOLAShell object. If Vphi is not given,
+        it is calculated from Vs and Vp coefficients using the gamma scaling
+        profile given from PREM.
+
+        Parameters
+        -------
+        Vp: array_like (96, 2, 9, 9)
+            Compressional-wave velocities in spherical harmonics, evaluated at PREM
+            depths up to degree 8.
+        Vs: array_like (96, 2, 9, 9)
+            Shear-wave velocities in spherical harmonics, evaluated at PREM depths
+            up to degree 8.
+        Vphi: array_like (96, 2, 9, 9)
+            Bulk-sound velocities in spherical harmonics, evaluated at PREM depths
+            up to degree 8.
+        Vp_err: array_like (96, 2, 9, 9)
+            Compressional-wave velocities uncertainties in spherical harmonics, 
+            evaluated at PREM depths up to degree 8.
+        Vs_err: array_like (96, 2, 9, 9)
+            Shear-wave velocities uncertainties in spherical harmonics, 
+            evaluated at PREM depths up to degree 8.
+        Vphi_err: array_like (96, 2, 9, 9)
+            Bulk-sound-wave velocities uncertainties in spherical harmonics, 
+            evaluated at PREM depths up to degree 8.
+        """
         self.depths = _SOLA_depths
         self.lmax = 8
         self.filtered = {'vp': False,
@@ -640,7 +977,17 @@ class SOLAShell():
 
 
     def update_velocities(self, v_type, velocity):
+        """
+        Updates the velocity array, specified by v_type.
 
+        Parameters
+        -------
+        v_type: str
+            The type of velocity considered. Must either be 'vp', 'vs' or 'vphi'.
+        velocity: array_like (96, 2, 9, 9)
+            Velocities in spherical harmonics, evaluated at PREM depths up to degree
+            8.
+        """
         assert self.filtered[v_type] == False, "Cannot update velocities after filtering"
         assert velocity.shape == ((len(self.depths), 2, self.lmax+1, self.lmax+1)), "Wrong shape for velocity array"
         assert v_type in ['vp', 'vs', 'vphi'], "v_type must be 'vp', 'vs' or 'vphi'"
@@ -654,7 +1001,18 @@ class SOLAShell():
 
     
     def update_velocity_errors(self, err_type, error):
+        """
+        Updates the velocity uncertainty array, specified by err_type.
 
+        Parameters
+        -------
+        err_type: str
+            The type of velocity uncertainty considered. Must either be 'vp', 'vs'
+            or 'vphi'.
+        error: array_like (96, 2, 9, 9)
+            Velocity errors in spherical harmonics, evaluated at PREM depths up to 
+            degree 8.
+        """
         assert self.filtered[err_type] == False, "Cannot update velocities after filtering"
         assert error.shape == ((len(self.depths), 2, self.lmax+1, self.lmax+1)), "Wrong shape for velocity array"
         assert err_type in ['vp', 'vs', 'vphi'], "err_type must be 'vp', 'vs' or 'vphi'"
@@ -669,7 +1027,16 @@ class SOLAShell():
 
     @classmethod
     def from_directory(cls, directory):
+        """
+        Upload the tomography model from Restelli et al. (2023), which
+        stores the coefficients in different files and folders based on
+        spherical harmonic degree and order.
 
+        Parameters
+        -------
+        directory: str
+            The directory where the coefficients are stored.
+        """
         data_files = glob.glob(directory + '/**/mk**.txt', recursive = True)
 
         # Storage for raw coefficients at PREM depth layers
@@ -703,14 +1070,20 @@ class SOLAShell():
 
 
     def apply_kernel(self):
-
+        """
+        Applies the resolution kernel to all the velocities and uncertainties 
+        to obtain a filtered version of the tomography model.
+        """
         self._apply_individual_kernel('vphi') if getattr(self, 'vphi') is not None else None
         self._apply_individual_kernel('vp') if getattr(self, 'vp') is not None else None
         self._apply_individual_kernel('vs') if getattr(self, 'vs') is not None else None
 
     
     def _apply_individual_kernel(self, velocity):
-
+        """
+        Inner function that applies the resolution kernel to a specific velocity
+        and its uncertainties.
+        """
         assert velocity in ['vp', 'vs', 'vphi'], "Velocity must be 'vp', 'vs' or 'vphi'"
         v_err = velocity + '_err'
         assert getattr(self, velocity) is not None, \
@@ -731,7 +1104,9 @@ class SOLAShell():
 
 
     def _calculate_vphi(self):
-
+        """
+        Calculates Vphi profile based on Vp, Vs and the PREM gamma profile.
+        """
         assert self.vp is not None, 'Vp is empty'
         assert self.vs is not None, 'Vs is empty'
         assert self.vphi is None, 'Vphi should be empty'
@@ -753,7 +1128,56 @@ class SOLAShell():
 # Functions
 def oxide_to_phase(t_grid, depth, lon, lat, comp, phase_boundary_reference, X = 0,
                    min_model = 'SLB_2022', assemblage_type = 'depleted', save = False, outdir = '', verbose = False):
+    """
+    Calculates the equilibrium phase assemblage at depth and temperature points
+    in a geodynamic model, for a given composition using a given mineralogical
+    model. The function calculates the phase assemblages by pressure (or depth).
+    At each pressure, we take the temperatures associated with the boundaries
+    of the two phase region, and we separate the list of points at each pressure
+    to a bdg-only, pPv-only, or bdg+pPv region. This speeds up the calculation,
+    as the solver is more stable when one of bdg or pPv is included in the 
+    assemblage and this method minimises the number of points we evaluate
+    assemblages with both bdg and pPv.
+
+    Parameters
+    -------
+    t_grid: array_like (n, k)
+        A 2-D grid of temperatures evaluated at n depths and k lat/lon points.
+        The equilibrium phases are evaluated at the same points as the temperature
+        grid.
+    depth: array_like (n)
+        The list of depths of the t_grid model.
+    lon: array_like (k)
+        The list of longitude points of the t_grid model.
+    lat: array_like (k)
+        The list of latitude points of the t_grid model.
+    comp: str
+        The name of the LLVP composition. Should be either "pyrolite", "pyrolite_TC",
+        "BMO", "MORB" or "HC".
+    phase_boundary_reference: BdgPPVTwoPhaseRegion
+        The two phase region reference used to determine which assemblage to
+        optimise for at a specific pressure-temperature point.
+    X: array_like
+        The density grid from the TERRA geodynamic model, which should contain values
+        describing the fraction of dense material at each grid point (from 0 to 1).
+    min_model: str
+        The mineralogical model used. Should either be "SLB_2022" or "SLB_2011".
+    assemblage_type: str
+        The mineral assemblage type used to calculate the two phase region.
+        Should either be "depleted" or "enriched".
+    save: bool
+        If save = True, the elastic parameters will be saved as a .npz file.
+    outdir: str
+        The directory in which to output the equilibrium phase calculation.
+    verbose: bool
+        Whether to print output updating the user on the status of calculation.
     
+    Returns
+    -------
+    : PhaseGrid object
+        Equilibrium phase assemblages evaluated at the pressure and temperature
+        points of the geodynamic model.
+    """
     assert len(depth) == t_grid.shape[0], "Depth not matching number of rows in temperature grid"
     assert len(lon) == len(lat), "List of latitudes must be the same length as list of longitudes"
     assert len(lon) == t_grid.shape[1], "Lon/Lat not matching number of columns in temperature grid"
@@ -953,7 +1377,32 @@ def oxide_to_phase(t_grid, depth, lon, lat, comp, phase_boundary_reference, X = 
 
 def set_assemblage(p, t, iteration, assemblage_type, min_model, t_pv, t_ppv):
     """
-    Return the list of phases for an assemblage type at a specified pressure p and temperature t.
+    Return the list of phases for an assemblage type at a specified pressure
+    p and temperature t.
+
+    Parameters
+    -------
+    p: float
+        Pressure (Pa)
+    t: float
+        Temperature (K)
+    iteration: int
+        The iteration number, which is tracked to try different starting 
+        composition guesses if the previous iteration does not converge.
+    assemblage_type: str
+        The mineral assemblage type used to calculate the two phase region.
+        Should either be "depleted" or "enriched".
+    min_model: str
+        The mineralogical model used. Should either be "SLB_2022" or "SLB_2011".
+    t_pv: float
+        The temperature at which pPv starts becoming stable at pressure p.
+    t_ppv: float
+        The temperature at which bdg stops becoming stable at pressure p.
+
+    Returns
+    -------
+    assemblage: burnman.Composite object
+        The list of phases considered for a (p,t) point.
     """
     if min_model == 'SLB_2022':
         pv = burnman.minerals.SLB_2022.bridgmanite()
@@ -1014,6 +1463,31 @@ def set_assemblage(p, t, iteration, assemblage_type, min_model, t_pv, t_ppv):
 
 
 def calculate_mean_ppv(ppv_array, depth, method = 'average_lateral_variations', min_depth = 2250):
+    """
+    Calculates the mean pPv fraction as a metric of pPv coverage for filtered
+    synthetic velocity models.
+
+    Parameters
+    -------
+    ppv_array: str
+        pPv fraction evaluated at each Terra grid point 
+    depth: array_like
+        The list of depths used in PREM. PREM_depths should be an array from 
+        outwards towards center of the Earth in depth (not radius)
+    method: str
+        The method used to calculate the mean pPv fraction. If method = 'average_
+        lateral_variations', the fraction is calculated by taking the range of pPv
+        at differnet depths, and calculating the mean of the values of ranges.
+        If method = 'transition_depth_thickness', the fraction is given by the
+        depth thickness over which pPv fraction goes from 0 to 1.
+    min_depth: float
+        The shallowest depth to incorporate into the mean pPv fraction calculation.
+    
+    Returns
+    -------
+    ppv_means: float
+        The mean pPv fraction.
+    """
     assert method in ['transition_depth_thickness', 'average_lateral_variations']
 
     if method == 'average_lateral_variations':
