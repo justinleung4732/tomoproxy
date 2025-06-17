@@ -13,12 +13,11 @@ import matplotlib.pyplot as plt
 
 import pyshtools as shtools
 
-"""
- LayerData is a 'named tuple' containing a set of information, which can
- be in any form. Elements can be accessed by index or by name.  
- Each layer in a LayeredModel is itself an instance
- of this LayerData type.  So different depths can have different lmax.
-"""
+
+#  LayerData is a 'named tuple' containing a set of information, which can
+#  be in any form. Elements can be accessed by index or by name.  
+#  Each layer in a LayeredModel is itself an instance
+#  of this LayerData type.  So different depths can have different lmax.
 LayerData = collections.namedtuple('LayerData', ['depth', 'lmax', 'cilm'])
 
 class LayeredModel(object):
@@ -58,11 +57,11 @@ class LayeredModel(object):
         layers = []
         with open(fname, 'r') as f:
             num_layers = int(f.readline())
-            for i in range(num_layers):
+            for _ in range(num_layers):
                 layer_depth = float(f.readline())
                 lmax = int(f.readline())
                 # SHTOOLS wants lots of zeros in it's cilm array
-                # so keep track of l and m as we step through the 
+                # so keep track of l and m as we step through the
                 # file and bung the data into the right place
                 # in a numpy array
                 this_layer = LayerData(depth=layer_depth, lmax=lmax, 
@@ -73,7 +72,7 @@ class LayeredModel(object):
                         this_layer.cilm[0,l,m] = float(v1)
                         this_layer.cilm[1,l,m] = float(v2)
                 layers.append(this_layer)
-                    
+
         return layers
 
 
@@ -146,7 +145,7 @@ class LayeredModel(object):
                     this_layer.cilm[1,l,m] = float(v2)
             layers.append(this_layer)
 
-            for i in range(1, n_layers):
+            for _ in range(1, n_layers):
                 header = f.readline().split()
                 lmax = int(header[0])
                 this_layer = int(header[1])
@@ -166,7 +165,7 @@ class LayeredModel(object):
                 layers.append(this_layer)
 
         f.close()
-                
+
         return layers
 
 
@@ -186,9 +185,10 @@ class LayeredModel(object):
                         f.write(" {:14.7e} {:14.7e}\n".format(
                                                          layer.cilm[0,l,m],
                                                          layer.cilm[1,l,m]))
-    
-    
+
+
     def get_dimensions(self):
+        """Returns the depth and maximum degree of each layer"""
         depths = []
         lmaxs = []
         for layer in self.layers:
@@ -210,18 +210,18 @@ def copy_low_degree(layer_model, new_lmax, min_depth=None):
     if min_depth is not None:
         new_depths = []
         new_lmaxs = []
-        for i in range(len(depths)):
-            if depths[i] > min_depth:
-                new_depths.append(depths[i])
+        for _, d in enumerate(depths):
+            if d > min_depth:
+                new_depths.append(d)
                 new_lmaxs.append(new_lmax)
     else:
         new_lmaxs = [new_lmax]*len(old_lmaxs) # L max for each depth
         new_depths = depths
 
-    new_name = "Copy of {}".format(layer_model.name)
+    new_name = f"Copy of {layer_model.name}"
     new_layered_model =  LayeredModel((new_depths, new_lmaxs, new_name))
 
-    # Copy the needed cilms 
+    # Copy the needed cilms
     for i in range(len(new_depths)):
         for l in range(new_lmax+1):
             for m in range(l+1):

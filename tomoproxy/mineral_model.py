@@ -6,16 +6,14 @@ from __future__ import print_function
 
 from collections import namedtuple
 
-import numpy as np
-
 import burnman
 
 # We are not going to assume either thermodynamic equilibrium or any
-# particular rock type. This means we can vary the phase proportions 
+# particular rock type. This means we can vary the phase proportions
 # of bridgmanite, periclase, CaSiO3 perovskite and SiO2, the composition
 # of bridgmanite (Al, Fe and Mg - i.e. 2 parameters) and periclase (Mg-
-# Fe). We turn bridgmanite into post-perovskite and SiO2 stishovite into 
-# seifertite if we cross the phase boundaries. This means we have 6 
+# Fe). We turn bridgmanite into post-perovskite and SiO2 stishovite into
+# seifertite if we cross the phase boundaries. This means we have 6
 # "mineralogical" parameters. We may want to fix some of these!
 
 Properties = namedtuple('Properties', ['density','v_p','v_phi','v_s','K_S',
@@ -68,7 +66,7 @@ class MineralogicalModel(object):
         self.mineralnames = []
         self.endmemberids = []
         self.mineral_pointers = []
-        
+
         if thermo_data == "SLB_2011":
             for mineral, emc in zip(self._mineral_list, self._endmember_count):
                 if emc is None:
@@ -133,7 +131,7 @@ class MineralogicalModel(object):
             if Yppv_al < -1e-12:
                 Ypv_al = 0.0
             if Yppv_fe < -1e-12:
-                Ypv_fe = 0.0            
+                Ypv_fe = 0.0
 
         self.pv.set_composition([1.0-Ypv_fe-Ypv_al, Ypv_fe, Ypv_al])
         if self.ppv_mode == 'two_phase':
@@ -193,36 +191,35 @@ if __name__ == '__main__':
               'Evaluate seismic properties for the lower mantle')
     parser.add_argument('T', type=float, help='temperature (K)')
     parser.add_argument('P', type=float, help='pressure (GPa)')
-    parser.add_argument('-Xmgo', type=float, default=0.2, 
+    parser.add_argument('-Xmgo', type=float, default=0.2,
                         help='volume fraction MgFeO')
-    parser.add_argument('-Xcapv', type=float, default=0.05, 
+    parser.add_argument('-Xcapv', type=float, default=0.05,
                         help='volume fraction CaSiO3 perovskite')
-    parser.add_argument('-Xsio', type=float, default=0.0, 
+    parser.add_argument('-Xsio', type=float, default=0.0,
                         help='volume fraction SiO2')
-    parser.add_argument('-Xcf', type=float, default=0.0, 
+    parser.add_argument('-Xcf', type=float, default=0.0,
                         help='volume fraction Ca ferrite')
-    parser.add_argument('-Ypvfe', type=float, default=0.0, 
+    parser.add_argument('-Ypvfe', type=float, default=0.0,
                         help='volume fraction Fe in Mg perovskite')
-    parser.add_argument('-Ypval', type=float, default=0.0, 
+    parser.add_argument('-Ypval', type=float, default=0.0,
                         help='volume fraction Al in Mg perovskite')
-    parser.add_argument('-Ymgofe', type=float, default=0.0, 
+    parser.add_argument('-Ymgofe', type=float, default=0.0,
                         help='volume fraction Fe in MgO')
-    parser.add_argument('-Ymgona', type=float, default=0.0, 
+    parser.add_argument('-Ymgona', type=float, default=0.0,
                         help='volume fraction Na in MgO')
-    parser.add_argument('-Ycffe', type=float, default=0.0, 
+    parser.add_argument('-Ycffe', type=float, default=0.0,
                         help='volume fraction Fe in Ca ferrite')
-    parser.add_argument('-Ycfna', type=float, default=0.0, 
+    parser.add_argument('-Ycfna', type=float, default=0.0,
                         help='volume fraction Na in Ca ferrite')
     args = parser.parse_args()
 
     print("Using burnman version: ", burnman.__version__)
     min_model = MineralogicalModel()
 
-    res = min_model.evaluate(args.P, args.T, args.Xcapv, args.Xmgo,args.Xsio, 
+    res = min_model.evaluate(args.P, args.T, args.Xcapv, args.Xmgo, args.Xsio, args.Xcf,
                              args.Ypval, args.Ypvfe, args.Ymgofe, args.Ymgona,
                              args.Ycffe, args.Ycfna)
 
     print("density: ", res.density, 'kg/m^3')
     print("vp: ", res.v_p, 'm/s')
     print("vs: ", res.v_s, 'm/s')
-    

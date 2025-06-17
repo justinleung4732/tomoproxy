@@ -101,7 +101,8 @@ class SShell(object):
         # FIXME: Not sure if we really need the loop
         radii_scaled = np.polynomial.polyutils.mapdomain(radii, [self.r_min, self.r_max], [-1, 1])
         for i in range(len(self.cilm_map)):
-            self.coef[:,i] = np.polynomial.chebyshev.chebfit(radii_scaled, coeff_r[:,i], self.rdegree)
+            self.coef[:,i] = np.polynomial.chebyshev.chebfit(radii_scaled, coeff_r[:,i],
+                                                             self.rdegree)
 
 
     def compress_cilm(self, cilm_full):
@@ -177,21 +178,21 @@ class SShell(object):
         assert cilm.shape[1] == 2, "Wrong size (i)"
         assert cilm.shape[2] == self.sdegree + 1, "Wrong size (l)"
         assert cilm.shape[3] == self.sdegree + 1, "Wrong size (m)"
- 
+
         cilm_at_rnodes = np.empty((len(self.radial_nodes), 
                                    len(self.cilm_map)))
 
-        for ir, r in enumerate(self.radial_nodes):
+        for ir, _ in enumerate(self.radial_nodes):
             cilm_at_rnodes[ir,:] = self.compress_cilm(cilm[ir, :, :, :])
 
         for j in range(len(self.cilm_map)):
             self.coef[:,j] = np.dot(cilm_at_rnodes[:,j], self.cheb_interp)
-    
+
 
 def zeros_like(template_shell):
     new_shell = SShell(template_shell.sdegree, template_shell.rdegree,
                        template_shell.r_min, template_shell.r_max)
-    return new_shell 
+    return new_shell
 
 
 @functools.lru_cache(maxsize=1024)

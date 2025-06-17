@@ -48,11 +48,11 @@ def normalized_sh_coefficient(l, m, amplitude=1.0, peak_lon=0):
     coeffs = np.zeros((2))
 
     # We need to calculate the scale factor that we multiply the amplitude
-    # by to account for both the normalization, and to make the maximum in 
+    # by to account for both the normalization, and to make the maximum in
     # latitude be equal to the amplitude. This amounts to the division by
     # the maximum of the normalised associated Legendre function
     amplitude = amplitude / _get_plmon_max(l,m)
-        
+
     # Now handle the longitude
     if m == 0:
         # Zonal harmonics, don't scale for longitude
@@ -61,7 +61,7 @@ def normalized_sh_coefficient(l, m, amplitude=1.0, peak_lon=0):
         # Sectoral and tesseral harmonics, scale for longitude
         coeffs[0] = amplitude * np.cos(np.radians(l * peak_lon))
         coeffs[1] = amplitude * np.sin(np.radians(l * peak_lon))
-        
+
     return coeffs
 
 
@@ -81,18 +81,18 @@ def rts_to_sh(rts_coefs):
     lmax = inp_shape[1] - 1
     assert inp_shape[2] == lmax + 1, 'must have all ms'
 
-    coefs= shtools.SHCoeffs.from_zeros(lmax, kind='complex', 
+    coefs= shtools.SHCoeffs.from_zeros(lmax, kind='complex',
                                        normalization='ortho', csphase=-1)
 
     # We should be able to avoid the loop, but for now...
     for l in range(lmax+1):
         for m in range(l+1):
             coefs.set_coeffs(rts_coefs[0,l,m] - rts_coefs[1,l,m] * 1j, l, m)
-            # We don't need to set -m coeffs. minus sign for imaginary part 
+            # We don't need to set -m coeffs. minus sign for imaginary part
             # because real coefficients for sin store negative m degrees,
             # where sin(-m*phi) = -sin(m*phi)
 
-    sh_coefs = coefs.convert(normalization='ortho', csphase=1, kind='real', 
+    sh_coefs = coefs.convert(normalization='ortho', csphase=1, kind='real',
                              check=False).to_array()
 
      # RTS format multiples non-zero order (m) components by 2
@@ -117,7 +117,7 @@ def sh_to_rts(sh_coefs):
     lmax = inp_shape[1] - 1
     assert inp_shape[2] == lmax + 1, 'must have all ms'
 
-    coefs = shtools.SHCoeffs.from_zeros(lmax, kind='real', 
+    coefs = shtools.SHCoeffs.from_zeros(lmax, kind='real',
                                         normalization='ortho', csphase=1)
 
     # We should be able to avoid the loop, but for now...
@@ -127,13 +127,13 @@ def sh_to_rts(sh_coefs):
             if m != 0:
                 # coefs.set_coeffs(sh_coefs[1,l,m], l, -1*m)
                 coefs.set_coeffs(-sh_coefs[1,l,m], l, -1*m)
-                # Minus sign for imaginary part because real coefficients for 
+                # Minus sign for imaginary part because real coefficients for
                 # sin store negative m degrees, where sin(-m*phi) = -sin(m*phi)
 
-    complex_coefs = coefs.convert(normalization='ortho', csphase=-1, kind='complex', 
+    complex_coefs = coefs.convert(normalization='ortho', csphase=-1, kind='complex',
                               check=False).to_array()
 
-    # SHTOOLS stores the two arrays in axis 0 as positive m and negative m shells. We 
+    # SHTOOLS stores the two arrays in axis 0 as positive m and negative m shells. We
     # want to match the RTS format of storing real part in the first array and
     # imaginary aprt in the second array of axis 0
     real = complex_coefs[0].real
@@ -141,13 +141,7 @@ def sh_to_rts(sh_coefs):
 
     rts_coefs = np.array([real, imag])
 
-    # RTS format multiples non-zero order (m) components by 2 
+    # RTS format multiples non-zero order (m) components by 2
     rts_coefs[:,1:,1:] *= 2
 
     return rts_coefs
-
-    # rts_coefs = coefs.convert(normalization='ortho', csphase=-1, kind='complex', 
-    #                           check=False).to_array()
-    
-    # # rts_coef is complex, but with all imag parts == +/- 0j 
-    # return np.real(rts_coefs)
