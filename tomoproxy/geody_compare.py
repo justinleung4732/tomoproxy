@@ -138,18 +138,18 @@ class BdgPPvTwoPhaseRegion():
             else:
                 self.assemblage_type = 'enriched'
         elif isinstance(comp, dict):
-            assert assemblage_type in ['depleted', 'enriched'], "Assemblage type must either \
-                                                                 be depleted or enriched"
+            assert assemblage_type in ['depleted', 'enriched'], "Assemblage type must either" \
+                                                                 "be depleted or enriched"
             self.assemblage_type = assemblage_type
             composition = comp
             comp = 'Custom'
         else:
-            raise TypeError("comp must be either a dictionary containing oxides or a str equal to \
-                            'pyrolite', 'BMO', 'MORB', 'HC'")
+            raise TypeError("comp must be either a dictionary containing oxides or a str equal to"\
+                            "'pyrolite', 'BMO', 'MORB', 'HC'")
 
         if imported:
-            assert lowp is None, "Lower phase boundary needed for import"
-            assert highp is None, "Higher phase boundary needed for import"
+            assert lowp is not None, "Lower phase boundary needed for import"
+            assert highp is not None, "Higher phase boundary needed for import"
             self.lowp = lowp
             self.highp = highp
         else:
@@ -359,14 +359,14 @@ class PhaseGrid():
             The mineral assemblage type used to calculate the two phase region.
             Should either be "depleted" or "enriched".
         """
-        assert min_model in ['SLB_2011', 'SLB_2022'], "Mineralogical model must either be \
-                                                       2022 (SLB 2022) or 2011 (SLB 2011)"
-        assert len(depth) == t_grid.shape[0], "Depth not matching number of rows in \
-                                               temperature grid"
-        assert len(lon) == len(lat), "List of latitudes must be the same length as list \
-                                      of longitudes"
-        assert len(lon) == t_grid.shape[1], "Lon/Lat not matching number of columns in \
-                                             temperature grid"
+        assert min_model in ['SLB_2011', 'SLB_2022'], "Mineralogical model must either be" \
+                                                       "2022 (SLB 2022) or 2011 (SLB 2011)"
+        assert len(depth) == t_grid.shape[0], "Depth not matching number of rows in" \
+                                               "temperature grid"
+        assert len(lon) == len(lat), "List of latitudes must be the same length as list" \
+                                      "of longitudes"
+        assert len(lon) == t_grid.shape[1], "Lon/Lat not matching number of columns in" \
+                                             "temperature grid"
 
         # Properties of class
         self.comp = comp
@@ -502,15 +502,15 @@ class PhaseGrid():
         """
         if 'pyrolite' not in self.comp:
             assert isinstance(py_phases, PhaseGrid) or \
-                    f'phases_pyroliteTC_{self.min_model[-2:]}' in py_phases, " \
-                    py_phase needed for compositional non-heterogeneous part of the mantle. Must \
-                    be either a file with the name phases_pyroliteTC_MINMODEL file or a PhaseGrid \
-                    object"
+                    f'phases_pyroliteTC_{self.min_model[-2:]}' in py_phases, \
+                    "py_phase needed for compositional non-heterogeneous part of the mantle. Must"\
+                    "be either a file with the name phases_pyroliteTC_MINMODEL file or a PhaseGrid"\
+                    "object"
             if isinstance(py_phases, PhaseGrid):
                 assert py_phases.comp == 'pyroliteTC', "pyroliteTC composition for py_phase needed"
             assert comp_grid is not None, "comp_grid needed for thermochemical compositions"
-            assert comp_grid.shape == self.t_grid.shape, "Shape of X must be same as that of \
-                                                          temperature field."
+            assert comp_grid.shape == self.t_grid.shape, "Shape of X must be same as that of" \
+                                                          "temperature field."
 
             if isinstance(py_phases, str):
                 py_phases = PhaseGrid(py_phases, self.t_grid, self.depth, self.lon, self.lat,
@@ -533,8 +533,8 @@ class PhaseGrid():
             ppv_frac = self.phases['Xppv_grid'] / (pv + self.phases['Xppv_grid'])
 
         if exclude_llvp:
-            assert comp_grid is not None, "comp_grid needed for partppv scenario pPv fraction \
-                                           calclulation"
+            assert comp_grid is not None, "comp_grid needed for partppv scenario pPv fraction" \
+                                           "calclulation"
             llvp_not = np.argwhere(comp_grid > threshold)
             ppv_frac[llvp_not[:,0], llvp_not[:,1]] = 0
 
@@ -568,11 +568,11 @@ class PhaseGrid():
         """
 
         if "pyrolite" not in self.comp:
-            assert isinstance(py_model, ElasticGrid), "Reference thermal (pyrolite) model needed \
-                                                       at points outside LLVPs"
+            assert isinstance(py_model, ElasticGrid), "Reference thermal (pyrolite) model needed" \
+                                                       "at points outside LLVPs"
             assert py_model.comp == "pyroliteTC", "TC pyrolite elastic model needs to be used"
-            assert comp_grid is not None, "A composition grid must be specified for thermochemical \
-                                           models"
+            assert comp_grid is not None, "A composition grid must be specified for" \
+                                           "thermochemical models"
 
         for name, phase in self.phases.items():
             if phase is None:
@@ -894,12 +894,12 @@ class RawSeismicModel():
         assert min_model in ['SLB_2011', 'SLB_2022'], \
             "Mineralogical model must either be 2022 (SLB 2022) or 2011 (SLB 2011)"
 
-        vp_layer = lm.LayeredModel(f'{fileloc}SH_{seismic_model}_{comp}_\
-                                   {ppv_model_type}_{min_model[-2:]}_Vp')
-        vs_layer = lm.LayeredModel(f'{fileloc}SH_{seismic_model}_{comp}_\
-                                   {ppv_model_type}_{min_model[-2:]}_Vs')
-        vphi_layer = lm.LayeredModel(f'{fileloc}SH_{seismic_model}_{comp}_\
-                                     {ppv_model_type}_{min_model[-2:]}_Vc')
+        vp_layer = lm.LayeredModel(f'{fileloc}SH_{seismic_model}_{comp}_'\
+                                   f'{ppv_model_type}_{min_model[-2:]}_Vp')
+        vs_layer = lm.LayeredModel(f'{fileloc}SH_{seismic_model}_{comp}_'\
+                                   f'{ppv_model_type}_{min_model[-2:]}_Vs')
+        vphi_layer = lm.LayeredModel(f'{fileloc}SH_{seismic_model}_{comp}_'\
+                                     f'{ppv_model_type}_{min_model[-2:]}_Vc')
 
         return cls(vp_layer, vs_layer, vphi_layer, r_deg)
 
@@ -1282,8 +1282,8 @@ def oxide_to_phase(t_grid, depth, lon, lat, comp, phase_boundary_reference, comp
         composition = comp
         comp = 'Custom'
     else:
-        raise TypeError("comp must be either a dictionary containing oxides or a str equal to \
-                        'pyrolite', 'BMO', 'MORB', 'HC'")
+        raise TypeError("comp must be either a dictionary containing oxides or a str equal to" \
+                        "'pyrolite', 'BMO', 'MORB', 'HC'")
 
     assert phase_boundary_reference.comp == comp, \
         "Phase boundary reference composition must match input composition"
