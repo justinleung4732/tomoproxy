@@ -913,21 +913,20 @@ class RawSeismicModel():
         assert self.lmax >= 8, "Spherical degree is not high enough to create SOLAShell"
         vp = np.zeros((len(_SOLA_DEPTHS), 2, 9, 9))
         vs = np.zeros_like(vp)
-        vphi = np.zeros_like(vs)
+        gamma = np.zeros(len(_SOLA_DEPTHS))
 
         for i, d in enumerate(_SOLA_DEPTHS):
             if d < self.vp.r_min or d > self.vp.r_max:
                 continue
             vp[i] = self._abs_to_rel_velocity(self.vp.get_sh_coefs_at_r(d)[:, :9, :9])
             vs[i] = self._abs_to_rel_velocity(self.vs.get_sh_coefs_at_r(d)[:, :9, :9])
-            vphi[i] = self._abs_to_rel_velocity(self.vphi.get_sh_coefs_at_r(d)[:, :9, :9])
+            gamma[i] = 4/3 * self.vs.get_sh_coefs_at_r(d)[0,0,0]**2 / self.vp.get_sh_coefs_at_r(d)[0,0,0]**2
 
             # Set odd degress to 0
             vp[i,:,1::2] = 0
             vs[i,:,1::2] = 0
-            vphi[i,:,1::2] = 0
 
-        return SOLAShell(vp, vs, vphi)
+        return SOLAShell(vp, vs, gamma=gamma)
 
 
     def _to_sshell(self, vp, vs, vphi):
@@ -980,8 +979,7 @@ class SOLAShell():
     with the resolving kernel, which can then be quantitatively compared with 
     the model of Restelli et al. (2023).
     """
-    def __init__(self, vp=None, vs=None, vphi=None,
-                 vp_err=None, vs_err=None, vphi_err=None):
+    def __init__(self, vp=None, vs=None, vp_err=None, vs_err=None, gamma=_GAMMA):
         """
         Creates an instance of the SOLAShell object. If Vphi is not given,
         it is calculated from Vs and Vp coefficients using the gamma scaling
@@ -995,17 +993,11 @@ class SOLAShell():
         vs: array_like (96, 2, 9, 9)
             Shear-wave velocities in spherical harmonics, evaluated at PREM depths
             up to degree 8.
-        vphi: array_like (96, 2, 9, 9)
-            Bulk-sound velocities in spherical harmonics, evaluated at PREM depths
-            up to degree 8.
         vp_err: array_like (96, 2, 9, 9)
             Compressional-wave velocities uncertainties in spherical harmonics, 
             evaluated at PREM depths up to degree 8.
         vs_err: array_like (96, 2, 9, 9)
             Shear-wave velocities uncertainties in spherical harmonics, 
-            evaluated at PREM depths up to degree 8.
-        vphi_err: array_like (96, 2, 9, 9)
-            Bulk-sound-wave velocities uncertainties in spherical harmonics, 
             evaluated at PREM depths up to degree 8.
         """
         self.depths = _SOLA_DEPTHS
@@ -1022,14 +1014,13 @@ class SOLAShell():
         self.vs_err = None
         self.vphi_err = None
 
+        self.gamma = gamma
+
         if vp is not None:
             self.update_velocities('vp', vp)
 
         if vs is not None:
             self.update_velocities('vs', vs)
-
-        if vphi is not None:
-            self.update_velocities('vphi', vphi)
 
         if vp_err is not None:
             self.update_velocity_errors('vp', vp_err)
@@ -1037,12 +1028,8 @@ class SOLAShell():
         if vs_err is not None:
             self.update_velocity_errors('vs', vs_err)
 
-        if vphi_err is not None:
-            self.update_velocity_errors('vphi', vphi_err)
-
-        if vp is not None and vs is not None and vphi is None:
-            self._calculate_vphi()
-
+        self._calculate_vphi()
+        
 
     def update_velocities(self, v_type, velocity):
         """
@@ -1145,19 +1132,19 @@ class SOLAShell():
         to obtain a filtered version of the tomography model.
         """
         if getattr(self, 'vphi') is not None:
-            self._apply_individual_kernel('vphi')
+            self._apply_kernel_on_vphi()
         if getattr(self, 'vp') is not None:
-            self._apply_individual_kernel('vp')
+            self._apply_vsvp_kernel('vp')
         if getattr(self, 'vs') is not None:
-            self._apply_individual_kernel('vs')
+            self._apply_vsvp_kernel('vs')
 
 
-    def _apply_individual_kernel(self, velocity):
+    def _apply_vsvp_kernel(self, velocity):
         """
-        Inner function that applies the resolution kernel to a specific velocity
+        Inner function that applies the resolution kernel to vs or vp
         and its uncertainties.
         """
-        assert velocity in ['vp', 'vs', 'vphi'], "Velocity must be 'vp', 'vs' or 'vphi'"
+        assert velocity in ['vp', 'vs'], "Velocity must be 'vp' or 'vs'"
         v_err = velocity + '_err'
         assert getattr(self, velocity) is not None, \
         "Kernel cannot be applied without velocities"
@@ -1167,10 +1154,8 @@ class SOLAShell():
             spline = _SOLA_SPLINE_VP
         elif velocity == 'vs':
             spline = _SOLA_SPLINE_VS
-        elif velocity == 'vphi':
-            spline = (_SOLA_SPLINE_VP + _SOLA_SPLINE_VS) / 2
         else:
-            raise ValueError("Velocity must be 'vp', 'vs' or 'vphi'")
+            raise ValueError("Velocity must be 'vp' or 'vs'")
 
         setattr(self, velocity, np.average(getattr(self, velocity), axis = 0, weights = spline))
         if getattr(self, v_err) is not None:
@@ -1181,7 +1166,7 @@ class SOLAShell():
 
     def _calculate_vphi(self):
         """
-        Calculates Vphi profile based on Vp, Vs and the PREM gamma profile.
+        Calculates Vphi profile based on Vp, Vs and the gamma profile.
         """
         assert self.vp is not None, 'Vp is empty'
         assert self.vs is not None, 'Vs is empty'
@@ -1194,13 +1179,35 @@ class SOLAShell():
             self.vphi_err = np.zeros_like(self.vp)
         else:
             include_err = False
-            self.vphi_err = np.zeros_like(self.vp)
 
-        self.vphi = (self.vp - _GAMMA[:, None, None, None] * self.vs) / \
-            (1 - _GAMMA[:, None, None, None])
+        self.vphi = (self.vp - self.gamma[:, None, None, None] * self.vs) / \
+            (1 - self.gamma[:, None, None, None])
         if include_err:
-            self.vphi_err = (self.vp_err - _GAMMA[:, None, None, None] * self.vs_err) / \
-                 (1 - _GAMMA[:, None, None, None])
+            self.vphi_err = (self.vp_err - self.gamma[:, None, None, None] * self.vs_err) / \
+                 (1 - self.gamma[:, None, None, None])
+
+
+    def _apply_kernel_on_vphi(self):
+        """
+        Calculate the filtered version of vphi based on resolution kernels applied on vp and vs
+        separately.
+        """
+        weighted_vp = self.vp / (1 - self.gamma[:, None, None, None])
+        weighted_vs = self.vs * self.gamma[:, None, None, None] / \
+                        (1 - self.gamma[:, None, None, None])
+        filtered_vp = np.average(weighted_vp, axis = 0, weights = _SOLA_SPLINE_VP)
+        filtered_vs = np.average(weighted_vs, axis = 0, weights = _SOLA_SPLINE_VS)
+
+        self.vphi = filtered_vp - filtered_vs
+
+        if self.vphi_err is not None:
+            weighted_vp_err = self.vp_err / (1 - self.gamma[:, None, None, None])
+            weighted_vs_err = self.vs_err * self.gamma[:, None, None, None] / \
+                                (1 - self.gamma[:, None, None, None])
+            filtered_vp_err = np.average(weighted_vp_err, axis = 0, weights = _SOLA_SPLINE_VP)
+            filtered_vs_err = np.average(weighted_vs_err, axis = 0, weights = _SOLA_SPLINE_VS)
+
+            self.vphi_err = filtered_vp_err - filtered_vs_err
 
 
 # Functions
