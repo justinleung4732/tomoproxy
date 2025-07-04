@@ -9,4 +9,4 @@ To cite this repository, please cite the following:
 To cite the paper, please use the following citation:
 
 ## License
-Tomoproxy is released under an MIT license. See the [LICENSE]([url](https://github.com/justinleung4732/tomoproxy/blob/main/LICENSE)) file for details.
+Tomoproxy is released under an MIT license. See the [License]([url](https://github.com/justinleung4732/tomoproxy/blob/main/LICENSE)) file for details.
