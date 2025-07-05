@@ -6,7 +6,7 @@ Tomoproxy is a GitHub repository containing the code to produce the results and 
 
 Please cite the software and the associated paper. Please cite the software with the zenodo DOI above. 
 
-Please use the following citation to cite the paper:
+Please use the following citation to cite the paper:  
 Leung, J., Walker, A.M., Koelemeijer, P., Davies, D.R., Restelli, F., 2025. Quantitative assessment of tomographic proxies in the lowermost mantle. [Preprint]. https://doi.org/10.31223/X5F42K
 
 ## License
