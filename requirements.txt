@@ -10,5 +10,6 @@ nose
 pytables
 pyyaml
 gitpython
-
+pyshtools
+burnman
 
